@@ -1,5 +1,10 @@
 #include <ESP8266WiFi.h>
-#include <WiFiUdp.h>
+#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
+#include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
+#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+
+//Distance between wheels in cm
+#define WHEEL_DIST 8
 
 enum pins
 {
@@ -10,85 +15,58 @@ enum pins
   RIGHT_BACKWARD = 2
 };
 
-const int PORT = 8080;
-WiFiUDP net;
+ESP8266WebServer server(80);   //Web server object. Will be listening in port 80 (default for HTTP)
 
-int led_value = 1000;
-int led_change = 5;
+/*
+ * Convert speed to analog singnals
+ */
+void driveMotor(int forwardPin, int backwardPin, int motorSpeed){
+  if(motorSpeed > 0){
+    analogWrite(forwardPin, motorSpeed);
+    analogWrite(backwardPin, 0);
+  } else {
+    analogWrite(forwardPin, 0);
+    analogWrite(backwardPin, -motorSpeed);
+  }
+}
 
-unsigned long last_packet_time;
-unsigned long led_update_time;
+/*
+ * x - Forward speed 
+ * z - Angular speed
+ */
+void driveMotors(float x, float z){
+  float speed_right = z / 2 + x;
+  float speed_left = x * 2 - speed_right;
+  driveMotor(LEFT_FORWARD, LEFT_BACKWARD, speed_left * 1024);
+  driveMotor(RIGHT_FORWARD, RIGHT_BACKWARD, speed_right * 1024);
+}
 
-const int BUFF_LEN = 100;
-signed char buff[BUFF_LEN];
+void motorHandler(){
+  driveMotors(server.arg("x").toFloat(), server.arg("z").toFloat());
+  server.send(200, "text/plain", server.arg("x") + " " + server.arg("z"));  
+}
 
 void setup()
 {
-  pinMode(LED, OUTPUT);
+  Serial.begin(115200);
+
   pinMode(LEFT_FORWARD, OUTPUT);
   pinMode(LEFT_BACKWARD, OUTPUT);
   pinMode(RIGHT_FORWARD, OUTPUT);
   pinMode(RIGHT_BACKWARD, OUTPUT);
-  WiFi.begin("wifi_network_name", "wifi_network_password");
+  
+  analogWrite(LEFT_FORWARD, 0);
+  analogWrite(LEFT_BACKWARD, 0);
+  analogWrite(RIGHT_FORWARD, 0);
+  analogWrite(RIGHT_BACKWARD, 0);  
+  
+  WiFiManager wifiManager;
+  wifiManager.autoConnect();
 
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(100);
-    digitalWrite(LED, HIGH);
-    delay(100);
-    digitalWrite(LED, LOW);
-  }
-
-  net.begin(PORT);
-  last_packet_time = millis();
-
-  Serial.begin(115200);
+  server.on("/", motorHandler);
+  server.begin();
 }
 
 void loop() {
-  if (net.parsePacket() >= 2) {
-    last_packet_time = millis();
-    net.read((unsigned char*)buff, BUFF_LEN);
-    const int left = buff[0] * 8;
-    const int right = buff[1] * 8;
-    Serial.printf("left: %i - right: %i\n", left, right);
-    //If requested motor speed is above ~20%, move at requested speed and direction, otherwise stop.
-    if (left > 200) {
-      analogWrite(LEFT_FORWARD, left < 1023 ? left : 1023);
-      analogWrite(LEFT_BACKWARD, 0);
-    } else if (left < -200) {
-      analogWrite(LEFT_FORWARD, 0);
-      analogWrite(LEFT_BACKWARD, left > -1023 ? -left : 1023);
-    } else {
-      analogWrite(LEFT_FORWARD, 0);
-      analogWrite(LEFT_BACKWARD, 0);
-    }
-    if (right > 200) {
-      analogWrite(RIGHT_FORWARD, right < 1023 ? right : 1023);
-      analogWrite(RIGHT_BACKWARD, 0);
-    } else if (right < -200) {
-      analogWrite(RIGHT_FORWARD, 0);
-      analogWrite(RIGHT_BACKWARD, right > -1023 ? -right : 1023);
-    } else {
-      analogWrite(RIGHT_FORWARD, 0);
-      analogWrite(RIGHT_BACKWARD, 0);
-    }
-  } else {
-    //Turn off motors if no packet for over 0.5s
-    if (millis() - last_packet_time > 500) {
-      analogWrite(LEFT_FORWARD, 0);
-      analogWrite(LEFT_BACKWARD, 0);
-      analogWrite(RIGHT_FORWARD, 0);
-      analogWrite(RIGHT_BACKWARD, 0);
-    }
-  }
-  //update led
-  analogWrite(LED, led_value);
-  if (millis() - led_update_time > 50) {
-    led_value += led_change;
-    led_update_time = millis();
-    if (led_value <= 900 || led_value >= 1023) {
-      led_change = -led_change;
-    }
-  }
+  server.handleClient();    //Handling of incoming requests
 }
