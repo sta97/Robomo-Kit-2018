@@ -13,16 +13,58 @@ enum pins
   RIGHT_BACKWARD = 2
 };
 
-const int PORT = 8080;
-WiFiUDP net;
-const int BUFF_LEN = 100;
-signed char buff[BUFF_LEN];
-unsigned long last_packet_time;
-
 ESP8266WebServer server(80);   //Web server object. Will be listening in port 80 (default for HTTP)
 
+const char webPage[] = R"=====(
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+    $("button").click(function(){
+        $.get("/drive?x=" + x + "&z=" + z, function(data, status){});
+    });
+});
+</script>
+</head>
+<body>
+
+<button>Send an HTTP GET request to a page and get the result back</button>
+<div id="zone_joystick" style="background-color: green;"></div>
+<div id="output">Hello</div>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.6.8/nipplejs.min.js"></script>
+<script type="text/javascript">
+    var options = {
+        zone: document.getElementById('zone_joystick'),
+        color: 'blue',
+        mode: 'static',
+        position: {left: '50%', bottom: '50%'}
+    };
+    var nipple = nipplejs.create(options);
+    nipple.on('move', function (evt, data) {
+        //Move
+        //output.innerHTML = "<pre>" + JSON.stringify(data.instance.options.size, null, 4) + "</pre>"
+        z = data.instance.frontPosition.x / (data.instance.options.size / 2)
+        x = -data.instance.frontPosition.y / (data.instance.options.size / 2)
+        output.innerHTML = "<pre>X: " + x + "  Z: " + z + "</pre>"
+        $.get("/drive?x=" + x + "&z=" + z, function(data, status){});
+    }); 
+    nipple.on('end', function (evt, data) {
+        //Stop
+        output.innerHTML = "<pre>Stop</pre>"
+        x = 0
+        z = 0
+        $.get("/drive?x=" + x + "&z=" + z, function(data, status){});
+    });
+    
+</script>
+</html>
+)=====";
+
 /*
- * Convert speed to analog singnals
+ * Convert speed to analog signals
  */
 void driveMotor(int forwardPin, int backwardPin, int motorSpeed){
   if(motorSpeed > 0){
@@ -39,8 +81,9 @@ void driveMotor(int forwardPin, int backwardPin, int motorSpeed){
  * z - Angular speed
  */
 void driveMotors(float x, float z){
-  float speed_right = z / 2 + x;
-  float speed_left = x * 2 - speed_right;
+  float turnRate = z * 0.25;
+  float speed_right = x - turnRate;
+  float speed_left = x + turnRate;
   driveMotor(LEFT_FORWARD, LEFT_BACKWARD, speed_left * 1024);
   driveMotor(RIGHT_FORWARD, RIGHT_BACKWARD, speed_right * 1024);
 }
@@ -50,6 +93,10 @@ void motorHandler(){
   driveMotors(server.arg("x").toFloat(), server.arg("z").toFloat());
   //Just echo back inputs and send a 200 OK
   server.send(200, "text/plain", server.arg("x") + " " + server.arg("z"));  
+}
+
+void rootPageHandler(){
+  server.send(200, "text/plain", webPage);
 }
 
 void setup()
@@ -68,49 +115,13 @@ void setup()
   wifiManager.autoConnect();
 
   //Listen for web api calls
-  server.on("/", motorHandler);
+  server.on("/", []() { server.send ( 200, "text/html", webPage );  });
+  server.on("/drive", motorHandler);
   server.begin();
-
-  //Listen for UDP controll
-  net.begin(PORT);
-  last_packet_time = millis();
 }
 
 void loop() {
   //Listen on port 80 for web api
   server.handleClient();
-  //List on port 8080 for UPD controll
-  handleUdp();
 }
 
-void handleUdp(){
-  if (net.parsePacket() >= 2) {
-      last_packet_time = millis();
-      net.read((unsigned char*)buff, BUFF_LEN);
-      const int left = buff[0] * 8;
-      const int right = buff[1] * 8;
-      Serial.printf("left: %i - right: %i\n", left, right);
-      //If requested motor speed is above ~20%, move at requested speed and direction, otherwise stop.
-      if (left > 200) {
-        analogWrite(LEFT_FORWARD, left < 1023 ? left : 1023);
-        analogWrite(LEFT_BACKWARD, 0);
-      } else if (left < -200) {
-        analogWrite(LEFT_FORWARD, 0);
-        analogWrite(LEFT_BACKWARD, left > -1023 ? -left : 1023);
-      } else {
-        analogWrite(LEFT_FORWARD, 0);
-        analogWrite(LEFT_BACKWARD, 0);
-      }
-      if (right > 200) {
-        analogWrite(RIGHT_FORWARD, right < 1023 ? right : 1023);
-        analogWrite(RIGHT_BACKWARD, 0);
-      } else if (right < -200) {
-        analogWrite(RIGHT_FORWARD, 0);
-        analogWrite(RIGHT_BACKWARD, right > -1023 ? -right : 1023);
-      } else {
-        analogWrite(RIGHT_FORWARD, 0);
-        analogWrite(RIGHT_BACKWARD, 0);
-      }
-    }
-  
-}
