@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+    $("button").click(function(){
+        $.get("/drive?x=" + x + "&z=" + z, function(data, status){});
+    });
+});
+</script>
+</head>
+<body>
+<button>Send an HTTP GET request to a page and get the result back</button>
+<div id="zone_joystick" style="background-color: green;"></div>
+<div id="output">Hello</div>
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/nipplejs/0.6.8/nipplejs.min.js"></script>
+<script type="text/javascript">
+    var options = {
+        zone: document.getElementById('zone_joystick'),
+        color: 'blue',
+        mode: 'static',
+        position: {left: '50%', bottom: '50%'}
+    };
+    var nipple = nipplejs.create(options);
+    var time = 0;
+    nipple.on('move', function (evt, data) {
+        var d = new Date();
+        var n = d.getTime();
+        if(n - time < 50){
+            return;
+        }
+        time = n;
+        //Move
+        //output.innerHTML = "<pre>" + JSON.stringify(data.instance.options.size, null, 4) + "</pre>"
+        z = data.instance.frontPosition.x / (data.instance.options.size / 2)
+        x = -data.instance.frontPosition.y / (data.instance.options.size / 2)
+        output.innerHTML = "<pre>X: " + x + "  Z: " + z + "</pre>"
+        $.get("http://192.168.43.248/drive?x=" + x + "&z=" + z, function(data, status){});
+    }); 
+    nipple.on('end', function (evt, data) {
+        //Stop
+        output.innerHTML = "<pre>Stop</pre>"
+        x = 0
+        z = 0
+        $.get("/drive?x=" + x + "&z=" + z, function(data, status){});
+    });
+    
+</script>
+</html>

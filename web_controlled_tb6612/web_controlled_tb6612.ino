@@ -45,7 +45,14 @@ $(document).ready(function(){
         position: {left: '50%', bottom: '50%'}
     };
     var nipple = nipplejs.create(options);
+    var time = 0;
     nipple.on('move', function (evt, data) {
+        var d = new Date();
+        var n = d.getTime();
+        if(n - time < 50){
+            return;
+        }
+        time = n;
         //Move
         //output.innerHTML = "<pre>" + JSON.stringify(data.instance.options.size, null, 4) + "</pre>"
         z = data.instance.frontPosition.x / (data.instance.options.size / 2)
