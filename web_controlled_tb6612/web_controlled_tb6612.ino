@@ -93,7 +93,7 @@ void driveMotor(int pwmPin, int forwardPin, int backwardPin, int motorSpeed){
  * z - Angular speed
  */
 void driveMotors(float x, float z){
-  float turnRate = z * 0.25;
+  float turnRate = z;
   float speed_right = x + turnRate;
   float speed_left = x - turnRate;
   driveMotor(APWM, AIN_1, AIN_2, speed_left * 1024);
