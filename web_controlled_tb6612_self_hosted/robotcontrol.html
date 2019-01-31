@@ -21,9 +21,12 @@
     <script defer>
         var robotX = 0.0;
         var robotY = 0.0;
-        setInterval(sendToRobot, 1000);
+        setInterval(sendToRobot, 50);
 
         function f(event) {
+            if (event.type == "touchmove")
+                event = event.touches[0];
+
             var x = event.clientX;
             var y = event.clientY;
 
@@ -113,7 +116,7 @@
 </head>
 
 <body>
-    <div id="stick_box" onmousemove="f(event)" onmouseleave="center()">
+    <div id="stick_box" onmousemove="f(event)" onmouseleave="center()" ontouchmove="f(event)" ontouchend="center()">
         <div id="thumbstick"></div>
     </div>
     <p id="debug">no data</p>

@@ -2,6 +2,7 @@
 #include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 #include <WiFiUdp.h>              //Used for direct UDP control
+#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 
 //Pins for TB6612 motor driver
 enum pins
@@ -12,7 +13,7 @@ enum pins
   BIN_1 = 4,
   BIN_2 = 5,
   BPWM = 14,
-  STANDBY = 13 
+  STANDBY = 13
 };
 
 ESP8266WebServer server(80);   //Web server object. Will be listening in port 80 (default for HTTP)
@@ -41,9 +42,12 @@ const char webPage[] = R"=====(
     <script defer>
         var robotX = 0.0;
         var robotY = 0.0;
-        setInterval(sendToRobot, 1000);
+        setInterval(sendToRobot, 50);
 
         function f(event) {
+            if (event.type == "touchmove")
+                event = event.touches[0];
+
             var x = event.clientX;
             var y = event.clientY;
 
@@ -100,7 +104,7 @@ const char webPage[] = R"=====(
         }
 
         function sendToRobot() {
-            var getRequest = "http://" + window.location.hostname + "/drive?x=" + robotX + "&z=" + robotX;
+            var getRequest = "http://" + window.location.hostname + "/drive?x=" + robotX + "&z=" + robotY;
             var debug = document.getElementById("debug");
             if (debug != null)
                 debug.innerHTML = getRequest;
@@ -133,7 +137,7 @@ const char webPage[] = R"=====(
 </head>
 
 <body>
-    <div id="stick_box" onmousemove="f(event)" onmouseleave="center()">
+    <div id="stick_box" onmousemove="f(event)" onmouseleave="center()" ontouchmove="f(event)" ontouchend="center()">
         <div id="thumbstick"></div>
     </div>
     <p id="debug">no data</p>
@@ -186,7 +190,7 @@ void rootPageHandler(){
 
 void setup()
 {
-pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
   
   Serial.begin(9600);
   delay(100);
@@ -202,7 +206,8 @@ pinMode(LED_BUILTIN, OUTPUT);
   //Make sure motors are stopped
   driveMotors(0.0,0.0);
 
-  WiFi.softAP("robomo-robot");
+  WiFiManager wifiManager;
+  wifiManager.autoConnect();
 
   //Listen for web api calls
   server.on("/", []() { server.send ( 200, "text/html", webPage );  });
