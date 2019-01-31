@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>robot remote control</title>
+    <style>
+        #stick_box {
+            width: 90vmin;
+            height: 90vmin;
+            border-width: thick;
+            border: solid black;
+        }
+        
+        #thumbstick {
+            width: 20vmin;
+            height: 20vmin;
+            background-color: red;
+        }
+    </style>
+    <script defer>
+        var robotX = 0.0;
+        var robotY = 0.0;
+        setInterval(sendToRobot, 1000);
+
+        function f(event) {
+            var x = event.clientX;
+            var y = event.clientY;
+
+            var stick = document.getElementById("thumbstick");
+            var box = document.getElementById("stick_box");
+
+            var offset = stick.clientWidth / 2;
+
+            var boxSize = box.getBoundingClientRect();
+
+            var leftLim = boxSize.left + offset;
+            var rightLim = boxSize.right - offset;
+            var topLim = boxSize.top + offset;
+            var bottomLim = boxSize.bottom - offset;
+
+            if (x < leftLim)
+                x = leftLim;
+
+            if (x > rightLim)
+                x = rightLim;
+
+            if (y < topLim)
+                y = topLim;
+
+            if (y > bottomLim)
+                y = bottomLim;
+
+            stick.style.left = x - offset + "px";
+            stick.style.top = y - offset + "px";
+            stick.style.position = "absolute";
+
+            var centerX = (boxSize.left + boxSize.right) / 2;
+            var centerY = (boxSize.top + boxSize.bottom) / 2;
+
+            var joyX;
+            var joyY;
+
+            if (x > centerX)
+                joyX = percent(x, rightLim, centerX);
+            else
+                joyX = -percent(x, leftLim, centerX);
+
+            if (y > centerY)
+                joyY = -percent(y, bottomLim, centerY);
+            else
+                joyY = percent(y, topLim, centerY);
+
+            robotX = joyX;
+            robotY = joyY;
+        }
+
+        function percent(x, hi, low) {
+            return (x - low) / (hi - low);
+        }
+
+        function sendToRobot() {
+            var getRequest = "http://" + window.location.hostname + "/drive?x=" + robotX + "&z=" + robotY;
+            var debug = document.getElementById("debug");
+            if (debug != null)
+                debug.innerHTML = getRequest;
+            else
+                console.log("debug is null!");
+            var robot = new XMLHttpRequest()
+            robot.open("GET", getRequest);
+            robot.send();
+        }
+
+        function center() {
+            var stick = document.getElementById("thumbstick");
+            var box = document.getElementById("stick_box");
+
+            var offset = stick.clientWidth / 2;
+
+            var boxSize = box.getBoundingClientRect();
+
+            var x = (boxSize.left + boxSize.right) / 2;
+            var y = (boxSize.top + boxSize.bottom) / 2;
+
+            stick.style.left = x - offset + "px";
+            stick.style.top = y - offset + "px";
+            stick.style.position = "absolute";
+
+            robotX = 0.0;
+            robotY = 0.0;
+        }
+    </script>
+</head>
+
+<body>
+    <div id="stick_box" onmousemove="f(event)" onmouseleave="center()">
+        <div id="thumbstick"></div>
+    </div>
+    <p id="debug">no data</p>
+</body>
+
+</html>
