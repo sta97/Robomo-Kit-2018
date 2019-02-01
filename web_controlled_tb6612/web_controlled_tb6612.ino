@@ -7,13 +7,13 @@
 //Pins for TB6612 motor driver
 enum pins
 {
+  APWM = 5,
+  AIN_2 = 4,
   AIN_1 = 0,
-  AIN_2 = 2,
-  APWM = 12,
-  BIN_1 = 4,
-  BIN_2 = 5,
-  BPWM = 14,
-  STANDBY = 13 
+  STANDBY = 2,
+  BIN_1 = 14,
+  BIN_2 = 12,
+  BPWM = 13
 };
 
 ESP8266WebServer server(80);   //Web server object. Will be listening in port 80 (default for HTTP)
@@ -85,7 +85,7 @@ void driveMotor(int pwmPin, int forwardPin, int backwardPin, int motorSpeed){
     digitalWrite(backwardPin, HIGH);
   }
   //Set speed
-  analogWrite(pwmPin, motorSpeed);
+  analogWrite(pwmPin, abs(motorSpeed));
 }
 
 /*
@@ -93,7 +93,7 @@ void driveMotor(int pwmPin, int forwardPin, int backwardPin, int motorSpeed){
  * z - Angular speed
  */
 void driveMotors(float x, float z){
-  float turnRate = z * 0.25;
+  float turnRate = z;
   float speed_right = x + turnRate;
   float speed_left = x - turnRate;
   driveMotor(APWM, AIN_1, AIN_2, speed_left * 1024);
@@ -101,7 +101,7 @@ void driveMotors(float x, float z){
 }
 
 void motorHandler(){
-  //Use server x and z to drive motors - http://esp8266_ip_address/?x=1.0&z=-1.0
+  //Use server x and z to drive motors - http://esp8266_ip_address/drive?x=1.0&z=-1.0
   driveMotors(server.arg("x").toFloat(), server.arg("z").toFloat());
   //Just echo back inputs and send a 200 OK
   server.send(200, "text/plain", server.arg("x") + " " + server.arg("z"));  
@@ -149,4 +149,3 @@ void loop() {
   //Listen on port 80 for web api
   server.handleClient();
 }
-
