@@ -7,13 +7,13 @@
 //Pins for TB6612 motor driver
 enum pins
 {
+  APWM = 5,
+  AIN_2 = 4,
   AIN_1 = 0,
-  AIN_2 = 2,
-  APWM = 12,
-  BIN_1 = 4,
-  BIN_2 = 5,
-  BPWM = 14,
-  STANDBY = 13
+  STANDBY = 2,
+  BIN_1 = 14,
+  BIN_2 = 12,
+  BPWM = 13
 };
 
 ESP8266WebServer server(80);   //Web server object. Will be listening in port 80 (default for HTTP)
@@ -104,7 +104,7 @@ const char webPage[] = R"=====(
         }
 
         function sendToRobot() {
-            var getRequest = "http://" + window.location.hostname + "/drive?x=" + robotX + "&z=" + robotY;
+            var getRequest = "http://" + window.location.hostname + "/drive?x=" + robotY + "&z=" + robotX;
             var debug = document.getElementById("debug");
             if (debug != null)
                 debug.innerHTML = getRequest;
