@@ -27,6 +27,7 @@ const char webPage[] = R"=====(
     <title>robot remote control</title>
     <style>
         #stick_box {
+            touch-action: none;
             width: 90vmin;
             height: 90vmin;
             border-width: thick;
@@ -34,6 +35,7 @@ const char webPage[] = R"=====(
         }
         
         #thumbstick {
+            touch-action: none;
             width: 20vmin;
             height: 20vmin;
             background-color: red;
